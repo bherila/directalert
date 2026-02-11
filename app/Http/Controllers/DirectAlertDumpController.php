@@ -35,7 +35,7 @@ class DirectAlertDumpController extends Controller
 
             // Ensure end date is not before start date
             if ($startDate->greaterThan($endDate)) {
-                 return Response::make('Invalid date range: start date is after end date.', 400);
+                return Response::make('Invalid date range: start date is after end date.', 400);
             }
 
         } catch (\Exception $e) {
@@ -44,8 +44,8 @@ class DirectAlertDumpController extends Controller
         }
 
         // Query data within the date range
-        $data = DirectAlert::whereBetween('created_at', [$startDate, $endDate->endOfDay()]) // Include the whole end day
-                           ->get();
+        $data = DirectAlert::whereBetween('updated_at', [$startDate, $endDate->endOfDay()]) // Include the whole end day
+            ->get();
 
         if ($data->isEmpty()) {
             return Response::make('No data found for the specified date range.', 404);
@@ -57,7 +57,7 @@ class DirectAlertDumpController extends Controller
             'Content-Disposition' => 'attachment; filename="direct_alert_dump_' . $startDate->format('Ymd') . '_to_' . $endDate->format('Ymd') . '.csv"',
         ];
 
-        $callback = function() use ($data, $dateFormat) {
+        $callback = function () use ($data, $dateFormat) {
             $file = fopen('php://output', 'w');
 
             // Add friendly CSV header row
@@ -81,7 +81,7 @@ class DirectAlertDumpController extends Controller
             // Add data rows with friendly column mapping
             foreach ($data as $row) {
                 $updatedAt = $row->updated_at ?? $row->created_at;
-                
+
                 // Format the date based on the selected format
                 switch ($dateFormat) {
                     case 'excel':
