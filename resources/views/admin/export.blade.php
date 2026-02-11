@@ -36,6 +36,10 @@
                                 class="bg-gray-200 dark:bg-gray-700 dark:text-gray-200 py-1 px-3 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">Year</button>
                             <button type="button" id="btn-all"
                                 class="bg-gray-200 dark:bg-gray-700 dark:text-gray-200 py-1 px-3 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">All</button>
+                            @if($lastExportDate)
+                            <button type="button" id="btn-since-last-export" data-last-export="{{ $lastExportDate }}"
+                                class="bg-blue-200 dark:bg-blue-700 dark:text-gray-200 py-1 px-3 rounded hover:bg-blue-300 dark:hover:bg-blue-600 transition-colors">Since Last Export</button>
+                            @endif
                         </div>
                     </div>
 
@@ -57,6 +61,50 @@
                 </form>
 
                 <div id="message" class="mt-4 p-4 rounded hidden"></div>
+
+                @if(count($exportHistory) > 0)
+                <div class="mt-8">
+                    <h2 class="text-xl font-bold mb-4 dark:text-white">Your Export History</h2>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead class="bg-gray-50 dark:bg-gray-700">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Records</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Error</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+                                @foreach($exportHistory as $export)
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                                        {{ $export->created_at->format('Y-m-d H:i:s') }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                        @if($export->was_successful)
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100">
+                                                Success
+                                            </span>
+                                        @else
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100">
+                                                Failed
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                                        {{ $export->records_affected }}
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-300">
+                                        {{ $export->error_message ?? '-' }}
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                @endif
             </div>
         </div>
     </div>
