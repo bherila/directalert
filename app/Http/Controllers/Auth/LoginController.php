@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\AdminAuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\RedirectResponse;
@@ -32,12 +33,27 @@ class LoginController extends Controller
             'password' => ['required'],
         ]);
 
+        $auditService = new AdminAuditLogService();
+
         if (Auth::attempt($credentials, $request->filled('remember'))) {
             $request->session()->regenerate();
+
+            // Log successful login
+            $auditService->log(
+                action: 'login',
+                wasSuccessful: true
+            );
 
             // Redirect to the intended URL or a default location
             return redirect()->intended('/admin/export'); // Redirect to admin export page after login
         }
+
+        // Log failed login attempt
+        $auditService->log(
+            action: 'login',
+            wasSuccessful: false,
+            errorMessage: 'Invalid credentials'
+        );
 
         return back()->withErrors([
             'email' => 'The provided credentials do not match our records.',

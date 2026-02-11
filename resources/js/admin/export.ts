@@ -97,6 +97,17 @@ export function initExportForm(): void {
         $('#btn-quarter').on('click', () => setRange('quarter'));
         $('#btn-year').on('click', () => setRange('year'));
         $('#btn-all').on('click', () => setRange('all'));
+        
+        // Since Last Export button
+        $('#btn-since-last-export').on('click', function() {
+            const lastExportDate = $(this).data('last-export');
+            if (lastExportDate) {
+                const start = new Date(lastExportDate);
+                const end = new Date();
+                $startDate.val(formatDateTimeLocal(start));
+                $endDate.val(formatDateTimeLocal(end));
+            }
+        });
 
         function setRange(type: string): void {
             const { start, end } = getDateRange(type);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\AdminAuditLogService;
 use Illuminate\Http\Request;
 
 class AdminExportController extends Controller
@@ -13,6 +14,10 @@ class AdminExportController extends Controller
      */
     public function index()
     {
-        return view('admin.export');
+        $auditService = new AdminAuditLogService();
+        $exportHistory = $auditService->getExportHistory(20);
+        $lastExportDate = $auditService->getLastExportDate();
+        
+        return view('admin.export', compact('exportHistory', 'lastExportDate'));
     }
 }

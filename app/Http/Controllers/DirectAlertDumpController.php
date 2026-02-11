@@ -3,10 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\DirectAlert; // Import the DirectAlert model
+use App\Services\AdminAuditLogService;
+use App\Mail\AdminOperationNotification;
 use Carbon\Carbon; // Import Carbon for date handling
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth; // Import Auth facade
 use Illuminate\Support\Facades\Response; // Import Response facade
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class DirectAlertDumpController extends Controller
 {
@@ -18,9 +22,16 @@ class DirectAlertDumpController extends Controller
      */
     public function dumpCsv(Request $request)
     {
+        $auditService = new AdminAuditLogService();
+        
         // Check if the user is authenticated and has the admin role
         $user = Auth::user();
         if (!$user || $user->role !== 'admin') {
+            $auditService->log(
+                action: 'export',
+                wasSuccessful: false,
+                errorMessage: 'Unauthorized access attempt'
+            );
             return Response::make('Unauthorized: ' . json_encode($user), 401);
         }
 
@@ -35,11 +46,21 @@ class DirectAlertDumpController extends Controller
 
             // Ensure end date is not before start date
             if ($startDate->greaterThan($endDate)) {
+                $auditService->log(
+                    action: 'export',
+                    wasSuccessful: false,
+                    errorMessage: 'Invalid date range: start date is after end date'
+                );
                 return Response::make('Invalid date range: start date is after end date.', 400);
             }
 
         } catch (\Exception $e) {
             // Return 400 if dates are invalid or missing
+            $auditService->log(
+                action: 'export',
+                wasSuccessful: false,
+                errorMessage: 'Invalid or missing date parameters: ' . $e->getMessage()
+            );
             return Response::make('Invalid or missing date parameters. Please provide valid ISO timestamps for "start" and "end".', 400);
         }
 
@@ -48,7 +69,34 @@ class DirectAlertDumpController extends Controller
             ->get();
 
         if ($data->isEmpty()) {
+            $auditService->log(
+                action: 'export',
+                wasSuccessful: false,
+                errorMessage: 'No data found for the specified date range'
+            );
             return Response::make('No data found for the specified date range.', 404);
+        }
+
+        $recordCount = $data->count();
+
+        // Log successful export
+        $auditService->log(
+            action: 'export',
+            wasSuccessful: true,
+            recordsAffected: $recordCount
+        );
+
+        // Send email notification (don't fail if email fails)
+        try {
+            Mail::to('ben@herila.net')->send(new AdminOperationNotification(
+                operation: 'export',
+                wasSuccessful: true,
+                recordsAffected: $recordCount,
+                userName: $user->name ?? $user->email
+            ));
+        } catch (\Exception $e) {
+            // Log the error but don't fail the operation
+            Log::error('Failed to send export notification email: ' . $e->getMessage());
         }
 
         // Generate CSV content
