@@ -1,0 +1,15 @@
+{
+  "description": "Template configuration for this project. Browser verification is not needed for this project.",
+  "startupProcesses": [
+    {
+      "name": "dev-server",
+      "command": "php artisan serve",
+      "stdoutFile": "logs/dev-server.log"
+    },
+    {
+      "name": "vite",
+      "command": "npm run dev",
+      "stdoutFile": "logs/vite.log"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+<div class="flex flex-col sm:flex-row sm:items-center sm:space-x-4">{{ $slot }}</div>
