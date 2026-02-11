@@ -99,7 +99,7 @@ export function initExportForm(): void {
         $('#btn-all').on('click', () => setRange('all'));
         
         // Since Last Export button
-        $('#btn-since-last-export').on('click', function() {
+        $('#btn-since-last-export').on('click', function(this: HTMLElement) {
             const lastExportDate = $(this).data('last-export');
             if (lastExportDate) {
                 const start = new Date(lastExportDate);
