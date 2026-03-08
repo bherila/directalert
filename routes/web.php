@@ -6,6 +6,7 @@ use App\Http\Controllers\AdminImportController;
 use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\TwoFactorController;
 
 /*
 |--------------------------------------------------------------------------
@@ -34,7 +35,7 @@ Route::post('/update-information', [VerificationController::class, 'updateInform
 Route::get('/thanks', [VerificationController::class, 'showThanksPage']);
 
 // Admin routes with both auth and admin middleware
-Route::middleware(['auth', 'admin'])->group(function () {
+Route::middleware(['auth', 'twofactor', 'admin'])->group(function () {
     Route::get('/admin/export', [AdminExportController::class, 'index']);
     Route::get('/admin/import', [AdminImportController::class, 'index']);
     Route::post('/admin/import', [AdminImportController::class, 'import']);
@@ -42,6 +43,13 @@ Route::middleware(['auth', 'admin'])->group(function () {
 
 // Authentication Routes
 Route::prefix('auth')->group(function () {
+    // Two-Factor Authentication Routes
+    Route::middleware(['auth', 'twofactor'])->group(function () {
+        Route::get('verify/resend', [TwoFactorController::class, 'resend'])->name('verify.resend');
+        Route::get('verify', [TwoFactorController::class, 'index'])->name('verify.index');
+        Route::post('verify', [TwoFactorController::class, 'store'])->name('verify.store');
+    });
+
     // Login Routes
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [LoginController::class, 'login']);

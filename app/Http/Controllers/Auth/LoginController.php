@@ -7,6 +7,7 @@ use App\Services\AdminAuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\RedirectResponse;
+use App\Notifications\SendTwoFactorCode;
 
 class LoginController extends Controller
 {
@@ -37,6 +38,10 @@ class LoginController extends Controller
 
         if (Auth::attempt($credentials, $request->filled('remember'))) {
             $request->session()->regenerate();
+
+            $user = Auth::user();
+            $user->generateTwoFactorCode();
+            $user->notify(new SendTwoFactorCode());
 
             // Log successful login
             $auditService->log(
