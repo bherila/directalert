@@ -17,7 +17,7 @@ jobs:
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.5'
 
       - name: Install Composer (with dev)
         run: composer install --no-interaction --prefer-dist
@@ -46,7 +46,7 @@ jobs:
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.5'
 
       - name: Install Composer (no dev)
         run: composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
@@ -89,4 +89,4 @@ jobs:
         run: |
           sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
             ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} \
-            "cd ~/directalert-app && /opt/cpanel/ea-php83/root/usr/bin/php artisan config:clear && /opt/cpanel/ea-php83/root/usr/bin/php artisan config:cache && cd ~ && rm -rf directalert.middlesexwater.com && ln -s directalert-app/public directalert.middlesexwater.com"
+            "cd ~/directalert-app && /opt/cpanel/ea-php85/root/usr/bin/php artisan config:clear && /opt/cpanel/ea-php85/root/usr/bin/php artisan config:cache && cd ~ && rm -rf directalert.middlesexwater.com && ln -s directalert-app/public directalert.middlesexwater.com"
