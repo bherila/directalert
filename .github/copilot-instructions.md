@@ -2,7 +2,7 @@
 
 ## Architecture Overview
 
-- **Backend**: Laravel 10 (PHP 8.5+) API with Blade shell templates
+- **Backend**: Laravel 13 (PHP 8.5+) API with Blade shell templates
 - **Frontend**: React 19 + TypeScript via Vite
 - **UI**: shadcn/ui components with Radix UI primitives and Tailwind CSS v4
 - **Database**: MySQL with Eloquent ORM
@@ -422,13 +422,13 @@ The Laravel Boost guidelines are specifically curated by Laravel maintainers for
 This application is a Laravel application and its main Laravel ecosystems package & versions are below. You are an expert with them all. Ensure you abide by these specific packages & versions.
 
 - php - 8.5
-- laravel/framework (LARAVEL) - v10
+- laravel/framework (LARAVEL) - v13
 - laravel/prompts (PROMPTS) - v0
-- laravel/sanctum (SANCTUM) - v3
+- laravel/sanctum (SANCTUM) - v4
 - laravel/mcp (MCP) - v0
 - laravel/pint (PINT) - v1
 - laravel/sail (SAIL) - v1
-- phpunit/phpunit (PHPUNIT) - v10
+- phpunit/phpunit (PHPUNIT) - v11
 - tailwindcss (TAILWINDCSS) - v4
 
 
