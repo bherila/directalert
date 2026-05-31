@@ -19,9 +19,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'twofactor' => \App\Http\Middleware\TwoFactorMiddleware::class,
         ]);
 
+        $middleware->throttleApi();
+
         $middleware->api(append: [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);
+
+        $middleware->redirectUsersTo('/admin/export');
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
