@@ -3,17 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\DirectAlert;
-use App\Models\DirectAlertHistory; // Import the DirectAlert model
-use Carbon\Carbon; // Import the DirectAlertHistory model
-use Illuminate\Http\RedirectResponse; // Import the Cookie facade
-use Illuminate\Http\Request; // Import the Redirect facade
-use Illuminate\Support\Facades\Cookie; // Import the Validator facade
-use Illuminate\Support\Facades\DB; // Import the DB facade
+use App\Support\DirectAlertCrypto;
+use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
-
- // Import Carbon for timestamps
 
 class VerificationController extends Controller
 {
@@ -25,6 +22,14 @@ class VerificationController extends Controller
     public function showVerificationForm()
     {
         return view('welcome');
+    }
+
+    /**
+     * Look up an account by its (plaintext) account_number via the blind index.
+     */
+    private function findByAccountNumber(string $accountNumber): ?DirectAlert
+    {
+        return DirectAlert::where('account_number_hash', DirectAlertCrypto::blindIndex($accountNumber))->first();
     }
 
     /**
@@ -43,20 +48,19 @@ class VerificationController extends Controller
         $accountNumber = trim($request->input('account_number'));
         $lastName = trim($request->input('last_name'));
 
-        // Escape LIKE wildcards (% _ \) so a submitted "%" can't match every account_name
-        $escapedLastName = addcslashes($lastName, '\\%_');
+        // account_number is encrypted, so we look up via its deterministic
+        // blind-index hash, then compare the decrypted account_name in PHP
+        // (case-insensitive) - either an exact match, or the last-name part
+        // up to the comma (account_name is stored as "LAST, FIRST").
+        $account = $this->findByAccountNumber($accountNumber);
+        $normalizedLastName = mb_strtoupper($lastName);
 
-        // Find the account in the direct_alert table
-        // We need to match the account_number exactly and the last name part of account_name
-        // Match either: last name up to comma OR exact match on last name (case-insensitive, handled by collation)
-        $account = DirectAlert::where('account_number', $accountNumber)
-            ->where(function ($query) use ($escapedLastName, $lastName) {
-                $query->where('account_name', 'like', $escapedLastName.',%')
-                    ->orWhere('account_name', '=', $lastName);
-            })
-            ->first();
+        $matches = $account && (
+            mb_strtoupper($account->account_name) === $normalizedLastName
+            || str_starts_with(mb_strtoupper($account->account_name), $normalizedLastName.',')
+        );
 
-        if ($account) {
+        if ($matches) {
             // Account found, save account_number and full account_name to a cookie
             $cookie = Cookie::make('current_account', json_encode([
                 'account_number' => $account->account_number,
@@ -86,11 +90,9 @@ class VerificationController extends Controller
             return Redirect::to('/')->with('error', 'Please verify your account information to proceed.');
         }
 
-        $account = DirectAlert::where('account_number', $accountData['account_number'])
-            ->where('account_name', $accountData['account_name'])
-            ->first();
+        $account = $this->findByAccountNumber($accountData['account_number']);
 
-        if (! $account) {
+        if (! $account || $account->account_name !== $accountData['account_name']) {
             // Account not found in the database, redirect back to verification
             return Redirect::to('/')->with('error', 'Account not found. Please verify your information again.');
         }
@@ -129,11 +131,9 @@ class VerificationController extends Controller
             return Redirect::back()->withErrors($validator)->withInput();
         }
 
-        $account = DirectAlert::where('account_number', $accountData['account_number'])
-            ->where('account_name', $accountData['account_name'])
-            ->first();
+        $account = $this->findByAccountNumber($accountData['account_number']);
 
-        if (! $account) {
+        if (! $account || $account->account_name !== $accountData['account_name']) {
             // Account not found in the database, redirect back to verification
             return Redirect::to('/')->with('error', 'Account not found. Please verify your information again.');
         }
@@ -178,7 +178,7 @@ class VerificationController extends Controller
 
         if ($hasChanges) {
             // Copy current record to history
-            $historyRecord = $account->replicate();
+            $historyRecord = $account->replicate(['exported_at']);
             $historyRecord->setTable('direct_alert_history'); // Set the table name for the history model
             $historyRecord->save();
 

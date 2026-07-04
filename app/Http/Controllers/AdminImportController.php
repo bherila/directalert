@@ -2,43 +2,44 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\AdminOperationNotification;
 use App\Models\DirectAlert;
 use App\Services\AdminAuditLogService;
-use App\Mail\AdminOperationNotification;
+use App\Support\DirectAlertCrypto;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\View\View;
 
 class AdminImportController extends Controller
 {
     /**
      * Show the admin import page.
      *
-     * @return \Illuminate\View\View
+     * @return View
      */
     public function index()
     {
-        $auditService = new AdminAuditLogService();
+        $auditService = new AdminAuditLogService;
         $importHistory = $auditService->getImportHistory(20);
-        
+
         return view('admin.import', compact('importHistory'));
     }
 
     /**
      * Handle the CSV file upload and import.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * @return View|RedirectResponse
      */
     public function import(Request $request)
     {
-        $auditService = new AdminAuditLogService();
-        
+        $auditService = new AdminAuditLogService;
+
         $request->validate([
-            'csv_file' => 'required|file|mimes:csv,txt|max:10240'
+            'csv_file' => 'required|file|mimes:csv,txt|max:10240',
         ]);
 
         $file = $request->file('csv_file');
@@ -57,13 +58,13 @@ class AdminImportController extends Controller
             $headers = fgetcsv($handle, 0, $delimiter, $enclosure, $escape);
             if ($headers === false) {
                 fclose($handle);
-                
+
                 $auditService->log(
                     action: 'import',
                     wasSuccessful: false,
                     errorMessage: 'Failed to read CSV header row'
                 );
-                
+
                 return back()
                     ->withErrors(['csv_file' => 'Failed to read CSV header row'])
                     ->withInput();
@@ -75,16 +76,16 @@ class AdminImportController extends Controller
 
             // Check for missing columns
             $missingColumns = array_diff($requiredColumns, $headers);
-            if (!empty($missingColumns)) {
+            if (! empty($missingColumns)) {
                 fclose($handle);
-                
-                $errorMessage = 'Missing required columns: ' . implode(', ', $missingColumns);
+
+                $errorMessage = 'Missing required columns: '.implode(', ', $missingColumns);
                 $auditService->log(
                     action: 'import',
                     wasSuccessful: false,
                     errorMessage: $errorMessage
                 );
-                
+
                 return back()
                     ->withErrors(['csv_file' => $errorMessage])
                     ->withInput();
@@ -101,7 +102,7 @@ class AdminImportController extends Controller
                 $row = array_map('trim', $row);
 
                 // Skip empty rows
-                if (empty(array_filter($row, fn($cell) => trim($cell) !== ''))) {
+                if (empty(array_filter($row, fn ($cell) => trim($cell) !== ''))) {
                     continue;
                 }
 
@@ -115,26 +116,40 @@ class AdminImportController extends Controller
             }
             fclose($handle);
 
-            // Extract account numbers for duplicate checking
-            $accountNumbers = array_column($data, 'account_number');
+            // account_number is stored encrypted, so duplicate detection has to
+            // go through its deterministic blind-index hash rather than the
+            // plaintext value.
+            foreach ($data as &$row) {
+                $row['account_number_hash'] = $row['account_number'] !== null
+                    ? DirectAlertCrypto::blindIndex($row['account_number'])
+                    : null;
+            }
+            unset($row);
+
+            $accountNumberHashes = array_filter(array_column($data, 'account_number_hash'));
             $duplicates = [];
             $batchSize = 100;
 
             // Check for duplicates in batches
-            foreach (array_chunk($accountNumbers, $batchSize) as $batch) {
-                $existingAccounts = DirectAlert::whereIn('account_number', $batch)->pluck('account_number')->toArray();
+            foreach (array_chunk($accountNumberHashes, $batchSize) as $batch) {
+                $existingHashes = DirectAlert::whereIn('account_number_hash', $batch)->pluck('account_number_hash')->toArray();
                 foreach ($data as $row) {
-                    if (in_array($row['account_number'], $existingAccounts)) {
+                    if ($row['account_number_hash'] !== null && in_array($row['account_number_hash'], $existingHashes)) {
                         $duplicates[] = $row; // Store the full data item
                     }
                 }
             }
 
             // Filter out duplicates from the data array
-            $data = array_filter($data, fn($row) => !in_array($row['account_number'], array_column($duplicates, 'account_number')));
+            $duplicateHashes = array_column($duplicates, 'account_number_hash');
+            $data = array_filter($data, fn ($row) => ! in_array($row['account_number_hash'], $duplicateHashes));
 
-            // Validate and prepare data for bulk insert
+            // Validate and prepare data for bulk insert. $imported stays
+            // plaintext (it's rendered back to the admin on the results page),
+            // $insertRows holds the pre-encrypted values actually written to
+            // the database.
             $imported = [];
+            $insertRows = [];
             $failed = [];
             foreach ($data as $row) {
                 $validator = Validator::make($row, [
@@ -147,8 +162,9 @@ class AdminImportController extends Controller
                     $failed[] = [
                         'row' => $row['row_number'],
                         'data' => $row['raw_data'],
-                        'error' => 'Validation failed: ' . implode(', ', $validator->errors()->all()),
+                        'error' => 'Validation failed: '.implode(', ', $validator->errors()->all()),
                     ];
+
                     continue;
                 }
 
@@ -157,11 +173,23 @@ class AdminImportController extends Controller
                     'account_number' => $row['account_number'],
                     'zip_code' => $row['zip_code'],
                 ];
+
+                $insertRows[] = [
+                    'account_name' => DirectAlertCrypto::encryptBoundName($row['account_number'], $row['account_name']),
+                    'account_number' => DirectAlertCrypto::encryptAccountNumber($row['account_number']),
+                    'account_number_hash' => $row['account_number_hash'],
+                    'zip_code' => $row['zip_code'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
             }
 
-            // Perform bulk insert for valid rows
-            if (!empty($imported)) {
-                DirectAlert::insert($imported);
+            // Perform bulk insert for valid rows (pre-encrypted, so this bypasses
+            // Eloquent casts/events for bulk-insert performance while producing
+            // the exact same stored format DirectAlertCrypto/AccountBoundEncrypted
+            // would - see DirectAlertCrypto for the shared logic).
+            if (! empty($insertRows)) {
+                DirectAlert::insert($insertRows);
             }
 
             // Log successful import
@@ -186,12 +214,12 @@ class AdminImportController extends Controller
                 ));
             } catch (\Exception $e) {
                 // Log the error but don't fail the operation
-                Log::error('Failed to send import notification email: ' . $e->getMessage());
+                Log::error('Failed to send import notification email: '.$e->getMessage());
             }
 
             // Return the results view
             return view('admin.import-results', compact('imported', 'duplicates', 'failed'));
-            
+
         } catch (\Exception $e) {
             // Log failed import
             $auditService->log(
@@ -199,9 +227,9 @@ class AdminImportController extends Controller
                 wasSuccessful: false,
                 errorMessage: $e->getMessage()
             );
-            
+
             return back()
-                ->withErrors(['csv_file' => 'Import failed: ' . $e->getMessage()])
+                ->withErrors(['csv_file' => 'Import failed: '.$e->getMessage()])
                 ->withInput();
         }
     }
