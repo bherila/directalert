@@ -1,8 +1,8 @@
 <?php
 
+use App\Http\Controllers\DirectAlertDumpController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\DirectAlertDumpController;
 
 /*
 |--------------------------------------------------------------------------
@@ -20,4 +20,4 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 // Add the web middleware group to ensure session handling works properly for browser-based form submissions
-Route::middleware(['web', 'auth', 'admin'])->post('/admin/export/csv', [DirectAlertDumpController::class, 'dumpCsv']);
+Route::middleware(['web', 'auth', 'twofactor', 'admin'])->post('/admin/export/csv', [DirectAlertDumpController::class, 'dumpCsv']);
