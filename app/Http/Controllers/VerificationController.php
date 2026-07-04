@@ -2,21 +2,25 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\DirectAlert; // Import the DirectAlert model
-use App\Models\DirectAlertHistory; // Import the DirectAlertHistory model
-use Illuminate\Support\Facades\Cookie; // Import the Cookie facade
-use Illuminate\Support\Facades\Redirect; // Import the Redirect facade
-use Illuminate\Support\Facades\Validator; // Import the Validator facade
+use App\Models\DirectAlert;
+use App\Models\DirectAlertHistory; // Import the DirectAlert model
+use Carbon\Carbon; // Import the DirectAlertHistory model
+use Illuminate\Http\RedirectResponse; // Import the Cookie facade
+use Illuminate\Http\Request; // Import the Redirect facade
+use Illuminate\Support\Facades\Cookie; // Import the Validator facade
 use Illuminate\Support\Facades\DB; // Import the DB facade
-use Carbon\Carbon; // Import Carbon for timestamps
+use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\View\View;
+
+ // Import Carbon for timestamps
 
 class VerificationController extends Controller
 {
     /**
      * Show the account verification form.
      *
-     * @return \Illuminate\View\View
+     * @return View
      */
     public function showVerificationForm()
     {
@@ -26,8 +30,7 @@ class VerificationController extends Controller
     /**
      * Verify the account number and last name.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\RedirectResponse
+     * @return RedirectResponse
      */
     public function verifyAccount(Request $request)
     {
@@ -40,13 +43,16 @@ class VerificationController extends Controller
         $accountNumber = trim($request->input('account_number'));
         $lastName = trim($request->input('last_name'));
 
+        // Escape LIKE wildcards (% _ \) so a submitted "%" can't match every account_name
+        $escapedLastName = addcslashes($lastName, '\\%_');
+
         // Find the account in the direct_alert table
         // We need to match the account_number exactly and the last name part of account_name
         // Match either: last name up to comma OR exact match on last name (case-insensitive, handled by collation)
         $account = DirectAlert::where('account_number', $accountNumber)
-            ->where(function($query) use ($lastName) {
-                $query->where('account_name', 'like', $lastName . ',%')
-                      ->orWhere('account_name', '=', $lastName);
+            ->where(function ($query) use ($escapedLastName, $lastName) {
+                $query->where('account_name', 'like', $escapedLastName.',%')
+                    ->orWhere('account_name', '=', $lastName);
             })
             ->first();
 
@@ -69,25 +75,24 @@ class VerificationController extends Controller
     /**
      * Show the contact information update form.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * @return View|RedirectResponse
      */
     public function showUpdateInformationForm(Request $request)
     {
         $accountData = json_decode($request->cookie('current_account'), true);
 
-        if (!$accountData || !isset($accountData['account_number']) || !isset($accountData['account_name'])) {
+        if (! $accountData || ! isset($accountData['account_number']) || ! isset($accountData['account_name'])) {
             // Cookie is missing or invalid, redirect back to verification
             return Redirect::to('/')->with('error', 'Please verify your account information to proceed.');
         }
 
         $account = DirectAlert::where('account_number', $accountData['account_number'])
-                              ->where('account_name', $accountData['account_name'])
-                              ->first();
+            ->where('account_name', $accountData['account_name'])
+            ->first();
 
-        if (!$account) {
+        if (! $account) {
             // Account not found in the database, redirect back to verification
-             return Redirect::to('/')->with('error', 'Account not found. Please verify your information again.');
+            return Redirect::to('/')->with('error', 'Account not found. Please verify your information again.');
         }
 
         return view('update-information', compact('account'));
@@ -96,14 +101,13 @@ class VerificationController extends Controller
     /**
      * Update the contact information for the account.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\RedirectResponse
+     * @return RedirectResponse
      */
     public function updateInformation(Request $request)
     {
         $accountData = json_decode($request->cookie('current_account'), true);
 
-        if (!$accountData || !isset($accountData['account_number']) || !isset($accountData['account_name'])) {
+        if (! $accountData || ! isset($accountData['account_number']) || ! isset($accountData['account_name'])) {
             // Cookie is missing or invalid, redirect back to verification
             return Redirect::to('/')->with('error', 'Please verify your account information to proceed.');
         }
@@ -126,12 +130,12 @@ class VerificationController extends Controller
         }
 
         $account = DirectAlert::where('account_number', $accountData['account_number'])
-                              ->where('account_name', $accountData['account_name'])
-                              ->first();
+            ->where('account_name', $accountData['account_name'])
+            ->first();
 
-        if (!$account) {
+        if (! $account) {
             // Account not found in the database, redirect back to verification
-             return Redirect::to('/')->with('error', 'Account not found. Please verify your information again.');
+            return Redirect::to('/')->with('error', 'Account not found. Please verify your information again.');
         }
 
         // Check if any of the fields have changed
@@ -145,14 +149,14 @@ class VerificationController extends Controller
         $hasChanges = false;
 
         foreach ($fieldsToCheck as $field) {
-            if ($account->$field != $request->input($field)) {
-            $hasChanges = true;
-            break;
+            if ($request->input($field) != $account->$field) {
+                $hasChanges = true;
+                break;
             }
         }
 
         // Check opt-in fields for changes between null and non-null
-        if (!$hasChanges) {
+        if (! $hasChanges) {
             $optinFields = [
                 'optin_emergency_email',
                 'optin_home_call',
@@ -166,8 +170,8 @@ class VerificationController extends Controller
                 $newValue = $request->has($field) ? Carbon::now() : null;
 
                 if (is_null($currentValue) !== is_null($newValue)) {
-                $hasChanges = true;
-                break;
+                    $hasChanges = true;
+                    break;
                 }
             }
         }
@@ -201,7 +205,7 @@ class VerificationController extends Controller
     /**
      * Show the thank you page and delete the cookie.
      *
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * @return View|RedirectResponse
      */
     public function showThanksPage()
     {

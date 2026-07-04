@@ -1,12 +1,12 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminExportController;
 use App\Http\Controllers\AdminImportController;
-use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\TwoFactorController;
+use App\Http\Controllers\VerificationController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -23,13 +23,13 @@ use App\Http\Controllers\TwoFactorController;
 Route::get('/', [VerificationController::class, 'showVerificationForm']);
 
 // Route for submitting the verification form
-Route::post('/verify', [VerificationController::class, 'verifyAccount']);
+Route::post('/verify', [VerificationController::class, 'verifyAccount'])->middleware('throttle:direct-alert-verify');
 
 // Route for showing the update information form
 Route::get('/update-information', [VerificationController::class, 'showUpdateInformationForm']);
 
 // Route for submitting the update information form
-Route::post('/update-information', [VerificationController::class, 'updateInformation']);
+Route::post('/update-information', [VerificationController::class, 'updateInformation'])->middleware('throttle:direct-alert-verify');
 
 // Route for the thank you page
 Route::get('/thanks', [VerificationController::class, 'showThanksPage']);
