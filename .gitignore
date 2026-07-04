@@ -16,3 +16,4 @@ coverage
 .DS_Store
 /storage/app/backups
 /database/database.sqlite
+/storage/pail

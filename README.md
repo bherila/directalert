@@ -15,7 +15,15 @@ touch database/database.sqlite
 php artisan migrate --seed
 ```
 
-Make sure `.env` has `DB_CONNECTION=sqlite` and a `DIRECT_ALERT_BLIND_INDEX_PEPPER` value (any string is fine for local dev; see `.env.example`). Set `MAIL_MAILER=log` so local testing doesn't send real emails (2FA codes, admin notifications, invite links all get written to `storage/logs/laravel.log` instead).
+Make sure `.env` has `DB_CONNECTION=sqlite` and a `DIRECT_ALERT_BLIND_INDEX_PEPPER` value (any string is fine for local dev; see `.env.example`). Set `MAIL_MAILER=log` so local testing doesn't send real emails.
+
+### Running locally
+
+```bash
+composer run dev
+```
+
+This runs `php artisan serve`, `php artisan pail` (live log tailing), and the Vite dev server together in one terminal. With `MAIL_MAILER=log`, 2FA codes print directly into that terminal via `pail` - `App\Notifications\SendTwoFactorCode` logs a short `2FA code for <email>: <code>` line specifically for this (the full logged email is also there, but it's a large HTML dump that's harder to spot).
 
 ### Seeded login
 
