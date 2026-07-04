@@ -19,7 +19,11 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    // No third-party frontend consumes this API today (the export endpoint is
+    // called same-origin from the admin Blade views), so default to allowing
+    // no cross-origin callers. Set CORS_ALLOWED_ORIGINS (comma-separated) if a
+    // separate frontend origin is ever added.
+    'allowed_origins' => array_filter(explode(',', env('CORS_ALLOWED_ORIGINS', ''))),
 
     'allowed_origins_patterns' => [],
 

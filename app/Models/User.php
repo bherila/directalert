@@ -21,7 +21,6 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role',
         'two_factor_code',
         'two_factor_expires_at',
     ];
@@ -49,8 +48,6 @@ class User extends Authenticatable
 
     /**
      * Check if the user is an admin.
-     *
-     * @return bool
      */
     public function isAdmin(): bool
     {
@@ -59,8 +56,6 @@ class User extends Authenticatable
 
     /**
      * Generate and save a new two-factor code.
-     *
-     * @return void
      */
     public function generateTwoFactorCode(): void
     {
@@ -72,8 +67,6 @@ class User extends Authenticatable
 
     /**
      * Reset the two-factor code.
-     *
-     * @return void
      */
     public function resetTwoFactorCode(): void
     {

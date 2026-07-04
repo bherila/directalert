@@ -19,6 +19,7 @@
 
             <form method="POST" action="{{ route('register') }}">
                 @csrf
+                <input type="hidden" name="invite" value="{{ $invite->token }}">
 
                 <div class="mb-4">
                     <label for="name" class="block text-gray-700 text-sm font-bold mb-2">Name</label>
@@ -27,7 +28,7 @@
 
                 <div class="mb-4">
                     <label for="email" class="block text-gray-700 text-sm font-bold mb-2">Email Address</label>
-                    <input type="email" name="email" id="email" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" value="{{ old('email') }}" required>
+                    <input type="email" name="email" id="email" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" value="{{ old('email', $invite->email) }}" readonly required>
                 </div>
 
                 <div class="mb-6">
