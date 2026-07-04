@@ -14,3 +14,4 @@ pnpm-debug.log
 coverage
 *.lcov
 .DS_Store
+/storage/app/backups
