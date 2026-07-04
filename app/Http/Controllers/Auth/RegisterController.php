@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\AdminInvite;
 use App\Models\User;
+use App\Services\AdminAuditLogService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -115,6 +116,12 @@ class RegisterController extends Controller
         event(new Registered($user));
 
         Auth::login($user);
+
+        (new AdminAuditLogService)->log(
+            action: 'register',
+            wasSuccessful: true,
+            authUserId: $user->id
+        );
 
         return redirect($this->redirectTo);
     }
