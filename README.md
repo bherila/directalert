@@ -2,6 +2,57 @@
 
 This project is a Laravel application for managing direct alert information, including a database model, history table, and an admin export feature.
 
+## Local Development
+
+Local development uses a local SQLite database (`database/database.sqlite`), not the production MySQL database. Point `.env` at production only via the documented SSH workflow below, not by putting production DB credentials in a local `.env` - a local environment holding production DB credentials directly was the root cause of a production incident during the PII-encryption migration (wrong `APP_KEY` used against real data).
+
+### Setup
+
+```bash
+cp .env.example .env
+php artisan key:generate
+touch database/database.sqlite
+php artisan migrate --seed
+```
+
+Make sure `.env` has `DB_CONNECTION=sqlite` and a `DIRECT_ALERT_BLIND_INDEX_PEPPER` value (any string is fine for local dev; see `.env.example`). Set `MAIL_MAILER=log` so local testing doesn't send real emails (2FA codes, admin notifications, invite links all get written to `storage/logs/laravel.log` instead).
+
+### Seeded login
+
+The seeder (`database/seeders/DatabaseSeeder.php`) creates one admin user:
+
+| Email | Password | Role |
+|---|---|---|
+| `ben@herila.net` | `password` | admin |
+
+### Seeded sample DirectAlert data
+
+The seeder also creates 7 sample `direct_alert` rows covering the different states a real record can be in, plus one `direct_alert_history` snapshot. Use these account numbers + last names to exercise the citizen self-service flow (`/` → `/verify` → `/update-information`) locally:
+
+| Account # | Name | State |
+|---|---|---|
+| `1000001` | SMITH, JOHN | Freshly imported - no contact info yet (the state every row is in right after an admin CSV import) |
+| `1000007` | SMITH, ROBERT | Freshly imported, shares a last name with `1000001` - exercises that verification matches on account_number, not just name |
+| `1000002` | DOE, JANE | Fully self-registered - email + all 4 phone fields + every opt-in enabled |
+| `1000003` | GARCIA, MARIA | Partially registered - email only |
+| `1000004` | ACME PROPERTY MANAGEMENT LLC | Commercial/organization account (account_name isn't always a person) |
+| `1000005` | PATEL, RAJESH | Cell-only registration (no email/landline), SMS opt-in |
+| `1000006` | KOWALSKI, ANNA | Already exported and purged - `exported_at` is set but contact info has since been cleared; also has a `direct_alert_history` snapshot from before the purge |
+
+If you change the seeded accounts, keep this table and `DatabaseSeeder.php` in sync.
+
+### Reaching the real production database
+
+Production runs MySQL on a cPanel-hosted server; its `.env` lives only on that server, not in this repo. To run a one-off Artisan command against production, SSH in and run it there directly (this guarantees `APP_KEY`/`DIRECT_ALERT_BLIND_INDEX_PEPPER` match what's actually deployed - do not run production-data commands from a local checkout with overridden `DB_*` env vars, which is what caused the incident referenced above):
+
+```bash
+ssh <cpanel-account>@<host>
+cd ~/directalert-app
+php artisan <command>
+```
+
+Deploys happen via `.github/workflows/deploy.yml` on push to `main` (see that file for the exact steps) - it does **not** run migrations automatically, so any schema migration must be run manually on the server before/alongside a deploy that depends on it.
+
 ## Deployment to cPanel
 
 Deploying a Laravel application to cPanel involves several steps to ensure both PHP dependencies and frontend assets are correctly set up, and the web server points to the correct directory.
