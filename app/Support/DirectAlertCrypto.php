@@ -18,14 +18,28 @@ class DirectAlertCrypto
         return hash_hmac('sha256', $accountNumber, self::pepper());
     }
 
+    /**
+     * Plain (unbound) string encryption - used for account_number and the
+     * other PII fields (phones, email) that don't need AAD-style binding.
+     */
+    public static function encryptString(string $value): string
+    {
+        return Crypt::encryptString($value);
+    }
+
+    public static function decryptString(string $ciphertext): string
+    {
+        return Crypt::decryptString($ciphertext);
+    }
+
     public static function encryptAccountNumber(string $accountNumber): string
     {
-        return Crypt::encryptString($accountNumber);
+        return self::encryptString($accountNumber);
     }
 
     public static function decryptAccountNumber(string $ciphertext): string
     {
-        return Crypt::decryptString($ciphertext);
+        return self::decryptString($ciphertext);
     }
 
     /**
