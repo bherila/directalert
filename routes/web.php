@@ -45,14 +45,14 @@ Route::middleware(['auth', 'twofactor', 'admin'])->group(function () {
 Route::prefix('auth')->group(function () {
     // Two-Factor Authentication Routes
     Route::middleware(['auth', 'twofactor'])->group(function () {
-        Route::get('verify/resend', [TwoFactorController::class, 'resend'])->name('verify.resend');
+        Route::get('verify/resend', [TwoFactorController::class, 'resend'])->name('verify.resend')->middleware('throttle:two-factor-resend');
         Route::get('verify', [TwoFactorController::class, 'index'])->name('verify.index');
-        Route::post('verify', [TwoFactorController::class, 'store'])->name('verify.store');
+        Route::post('verify', [TwoFactorController::class, 'store'])->name('verify.store')->middleware('throttle:two-factor-verify');
     });
 
     // Login Routes
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [LoginController::class, 'login']);
+    Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:login');
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
     // Registration Routes

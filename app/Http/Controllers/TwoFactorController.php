@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
 use App\Notifications\SendTwoFactorCode;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 
 class TwoFactorController extends Controller
 {
@@ -23,7 +23,7 @@ class TwoFactorController extends Controller
 
         $user = auth()->user();
 
-        if ($request->input('two_factor_code') != $user->two_factor_code) {
+        if (! $user->two_factor_code || ! hash_equals((string) $user->two_factor_code, (string) $request->input('two_factor_code'))) {
             throw ValidationException::withMessages([
                 'two_factor_code' => __("The code you entered doesn't match our records"),
             ]);
@@ -38,7 +38,7 @@ class TwoFactorController extends Controller
     {
         $user = auth()->user();
         $user->generateTwoFactorCode();
-        $user->notify(new SendTwoFactorCode());
+        $user->notify(new SendTwoFactorCode);
 
         return redirect()->back()->withStatus(__('Code has been sent again'));
     }
