@@ -4,6 +4,7 @@ use App\Http\Controllers\AdminExportController;
 use App\Http\Controllers\AdminImportController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\DirectAlertDumpController;
 use App\Http\Controllers\TwoFactorController;
 use App\Http\Controllers\VerificationController;
 use Illuminate\Support\Facades\Route;
@@ -37,6 +38,7 @@ Route::get('/thanks', [VerificationController::class, 'showThanksPage']);
 // Admin routes with both auth and admin middleware
 Route::middleware(['auth', 'twofactor', 'admin'])->group(function () {
     Route::get('/admin/export', [AdminExportController::class, 'index']);
+    Route::post('/admin/purge-contact-info', [DirectAlertDumpController::class, 'purgeExportedContactInfo']);
     Route::get('/admin/import', [AdminImportController::class, 'index']);
     Route::post('/admin/import', [AdminImportController::class, 'import']);
 });

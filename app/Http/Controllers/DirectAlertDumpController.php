@@ -6,9 +6,11 @@ use App\Mail\AdminOperationNotification; // Import the DirectAlert model
 use App\Models\DirectAlert;
 use App\Services\AdminAuditLogService;
 use Carbon\Carbon; // Import Carbon for date handling
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth; // Import Auth facade
-use Illuminate\Support\Facades\Log; // Import Response facade
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request; // Import Auth facade
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB; // Import Response facade
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Response;
 
@@ -81,6 +83,12 @@ class DirectAlertDumpController extends Controller
         }
 
         $recordCount = $data->count();
+
+        // Mark these rows as exported so an admin can later purge their
+        // contact info via purgeExportedContactInfo() - a plain query builder
+        // update (not touching the encrypted columns) so exported_at gets set
+        // without re-encrypting anything.
+        DB::table('direct_alert')->whereIn('id', $data->pluck('id'))->update(['exported_at' => now()]);
 
         // Log successful export
         $auditService->log(
@@ -171,5 +179,79 @@ class DirectAlertDumpController extends Controller
         };
 
         return Response::stream($callback, 200, $headers);
+    }
+
+    /**
+     * Manually purge contact info (phones, email, opt-ins) for direct_alert
+     * rows that have already been exported and fall within the given
+     * exported_at range. account_number/account_name/zip_code are left
+     * intact so citizens can keep verifying and re-registering their contact
+     * info. Not automatic/scheduled - an admin runs this on demand, after
+     * downloading and verifying an export.
+     *
+     * @return RedirectResponse
+     */
+    public function purgeExportedContactInfo(Request $request)
+    {
+        $auditService = new AdminAuditLogService;
+
+        $user = Auth::user();
+        if (! $user || $user->role !== 'admin') {
+            $auditService->log(
+                action: 'purge',
+                wasSuccessful: false,
+                errorMessage: 'Unauthorized access attempt'
+            );
+
+            return redirect()->back()->with('error', 'Unauthorized.');
+        }
+
+        try {
+            $startDate = Carbon::parse($request->input('purge_start'));
+            $endDate = Carbon::parse($request->input('purge_end'));
+
+            if ($startDate->greaterThan($endDate)) {
+                $auditService->log(
+                    action: 'purge',
+                    wasSuccessful: false,
+                    errorMessage: 'Invalid date range: start date is after end date'
+                );
+
+                return redirect()->back()->with('error', 'Invalid date range: start date is after end date.');
+            }
+        } catch (\Exception $e) {
+            $auditService->log(
+                action: 'purge',
+                wasSuccessful: false,
+                errorMessage: 'Invalid or missing date parameters: '.$e->getMessage()
+            );
+
+            return redirect()->back()->with('error', 'Invalid or missing dates. Please provide a valid range.');
+        }
+
+        $recordCount = DB::table('direct_alert')
+            ->whereNotNull('exported_at')
+            ->whereBetween('exported_at', [$startDate, $endDate->endOfDay()])
+            ->update([
+                'cell_phone' => null,
+                'home_phone' => null,
+                'work_phone' => null,
+                'alternate_phone' => null,
+                'email' => null,
+                'optin_cell_sms' => null,
+                'optin_cell_call' => null,
+                'optin_home_call' => null,
+                'optin_work_call' => null,
+                'optin_emergency_email' => null,
+                'optin_email' => null,
+            ]);
+
+        $auditService->log(
+            action: 'purge',
+            wasSuccessful: true,
+            recordsAffected: $recordCount
+        );
+
+        return redirect()->back()->with('success', "Purged contact info for {$recordCount} already-exported record(s).");
     }
 }

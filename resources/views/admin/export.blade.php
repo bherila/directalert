@@ -62,6 +62,45 @@
 
                 <div id="message" class="mt-4 p-4 rounded hidden"></div>
 
+                <div class="mt-10 pt-8 border-t border-gray-200 dark:border-gray-700">
+                    <h2 class="text-xl font-bold mb-2 dark:text-white">Purge Exported Contact Info</h2>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                        After downloading and verifying an export above, you can permanently remove the contact info
+                        (phones, email, opt-ins) for records already exported in a given date range. Account number,
+                        name, and zip code are kept so citizens can keep verifying and re-registering their contact
+                        info. This only affects records that have actually been exported - nothing else is touched.
+                        This is a manual, on-demand action; it does not run automatically.
+                    </p>
+
+                    @if (session('success'))
+                        <div class="mb-4 p-4 rounded bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-200">{{ session('success') }}</div>
+                    @endif
+                    @if (session('error'))
+                        <div class="mb-4 p-4 rounded bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-200">{{ session('error') }}</div>
+                    @endif
+
+                    <form method="POST" action="{{ url('/admin/purge-contact-info') }}"
+                        onsubmit="return confirm('This will permanently delete contact info (phone, email, opt-ins) for already-exported records in this range. This cannot be undone. Continue?');">
+                        @csrf
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label for="purge_start" class="block font-medium mb-2 dark:text-gray-200">Exported From:</label>
+                                <input type="datetime-local" id="purge_start" name="purge_start" required
+                                    class="w-full p-2 border rounded dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                            </div>
+                            <div>
+                                <label for="purge_end" class="block font-medium mb-2 dark:text-gray-200">Exported To:</label>
+                                <input type="datetime-local" id="purge_end" name="purge_end" required
+                                    class="w-full p-2 border rounded dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                            </div>
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700 transition-colors dark:bg-red-700 dark:hover:bg-red-800">
+                            Purge Contact Info for Exported Records in Range
+                        </button>
+                    </form>
+                </div>
+
                 @if(count($exportHistory) > 0)
                 <div class="mt-8">
                     <h2 class="text-xl font-bold mb-4 dark:text-white">Your Export History</h2>
