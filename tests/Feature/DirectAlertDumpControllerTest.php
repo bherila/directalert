@@ -44,4 +44,31 @@ class DirectAlertDumpControllerTest extends TestCase
         $response->assertOk();
         $response->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
     }
+
+    public function test_export_reports_the_emergency_email_optin_flag(): void
+    {
+        DirectAlert::factory()->create([
+            'account_number' => '5559998',
+            'email' => 'citizen@example.com',
+            'optin_emergency_email' => now(),
+        ]);
+
+        $user = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($user);
+
+        $response = $this->post('/api/admin/export/csv', [
+            'start' => now()->subDay()->toIso8601String(),
+            'end' => now()->addDay()->toIso8601String(),
+        ]);
+
+        $response->assertOk();
+        $csv = $response->streamedContent();
+        $this->assertStringContainsString('5559998', $csv);
+
+        $rows = array_map('str_getcsv', explode("\n", trim($csv)));
+        $dataRow = collect($rows)->first(fn ($row) => ($row[1] ?? null) === '5559998');
+
+        $this->assertNotNull($dataRow);
+        $this->assertSame('yes', $dataRow[5]); // wantEmail column
+    }
 }

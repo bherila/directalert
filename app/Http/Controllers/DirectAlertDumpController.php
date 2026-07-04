@@ -156,7 +156,7 @@ class DirectAlertDumpController extends Controller
                     str_pad((string) $row->zip_code, 5, '0', STR_PAD_LEFT), // Add single quote to preserve leading zeros
                     $formattedDate,
                     $row->email,
-                    $row->optin_email ? 'yes' : '',
+                    $row->optin_emergency_email ? 'yes' : '',
                     $row->home_phone,
                     $row->optin_home_call ? 'yes' : '',
                     $row->work_phone,
