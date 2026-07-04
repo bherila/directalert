@@ -194,6 +194,11 @@ class VerificationController extends Controller
             $account->optin_work_call = $request->has('optin_work_call') ? Carbon::now() : null;
             $account->optin_cell_call = $request->has('optin_cell_call') ? Carbon::now() : null;
             $account->optin_cell_sms = $request->has('optin_cell_sms') ? Carbon::now() : null;
+
+            // This contact info has never been exported - clear any stale
+            // exported_at so a later purge (scoped to already-exported rows)
+            // can't wipe data the vendor never actually received.
+            $account->exported_at = null;
         }
 
         $account->save();

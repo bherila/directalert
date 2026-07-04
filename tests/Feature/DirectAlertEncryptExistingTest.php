@@ -83,4 +83,50 @@ class DirectAlertEncryptExistingTest extends TestCase
 
         $this->assertSame('5551234', DirectAlert::first()->account_number);
     }
+
+    public function test_it_aborts_if_existing_hash_does_not_match_this_environments_pepper(): void
+    {
+        $account = DirectAlert::factory()->create(['account_number' => '5551234']);
+        DB::table('direct_alert')->where('id', $account->id)->update(['account_number_hash' => 'not-the-real-hash']);
+
+        DB::table('direct_alert')->insert([
+            'account_number' => '5559999',
+            'account_name' => 'ROE, RICHARD',
+            'zip_code' => '08830',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->artisan('direct-alert:encrypt-existing', ['--force' => true])->assertFailed();
+
+        // The new plaintext row must be untouched - the command should abort
+        // before writing anything once the consistency check fails.
+        $raw = DB::table('direct_alert')->where('account_number', '5559999')->first();
+        $this->assertNotNull($raw);
+        $this->assertNull($raw->account_number_hash);
+    }
+
+    public function test_it_skips_rows_with_null_account_number_without_crashing(): void
+    {
+        DB::table('direct_alert')->insert([
+            'account_number' => null,
+            'account_name' => null,
+            'zip_code' => '08830',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('direct_alert')->insert([
+            'account_number' => '5551234',
+            'account_name' => 'DOE, JANE',
+            'zip_code' => '08830',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->artisan('direct-alert:encrypt-existing', ['--force' => true])->assertSuccessful();
+
+        $this->assertSame('5551234', DirectAlert::where('account_number_hash', DirectAlertCrypto::blindIndex('5551234'))->firstOrFail()->account_number);
+        $this->assertNull(DB::table('direct_alert')->whereNull('account_number')->value('account_number_hash'));
+    }
 }

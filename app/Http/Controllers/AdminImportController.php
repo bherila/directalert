@@ -126,23 +126,48 @@ class AdminImportController extends Controller
             }
             unset($row);
 
-            $accountNumberHashes = array_filter(array_column($data, 'account_number_hash'));
             $duplicates = [];
-            $batchSize = 100;
 
-            // Check for duplicates in batches
+            // Duplicates *within the uploaded file itself* (multi-person
+            // utility accounts commonly repeat an account number across
+            // rows) - keep the first occurrence, flag the rest. Without this,
+            // a bulk insert containing two rows with the same account_number
+            // would fail the whole import on the account_number_hash unique
+            // constraint.
+            $seenHashes = [];
+            foreach ($data as $key => $row) {
+                if ($row['account_number_hash'] === null) {
+                    continue;
+                }
+
+                if (isset($seenHashes[$row['account_number_hash']])) {
+                    $duplicates[] = $row;
+                    unset($data[$key]);
+                } else {
+                    $seenHashes[$row['account_number_hash']] = true;
+                }
+            }
+
+            // Duplicates against accounts that already exist in the database.
+            // Filtered out of $data by row key (not by hash membership) -
+            // after the intra-file pass above, a kept row can share its hash
+            // with an already-removed duplicate, so filtering by hash here
+            // would incorrectly drop the kept row too.
+            $accountNumberHashes = array_filter(array_column($data, 'account_number_hash'));
+            $batchSize = 100;
+            $dbDuplicateKeys = [];
+
             foreach (array_chunk($accountNumberHashes, $batchSize) as $batch) {
                 $existingHashes = DirectAlert::whereIn('account_number_hash', $batch)->pluck('account_number_hash')->toArray();
-                foreach ($data as $row) {
+                foreach ($data as $key => $row) {
                     if ($row['account_number_hash'] !== null && in_array($row['account_number_hash'], $existingHashes)) {
                         $duplicates[] = $row; // Store the full data item
+                        $dbDuplicateKeys[] = $key;
                     }
                 }
             }
 
-            // Filter out duplicates from the data array
-            $duplicateHashes = array_column($duplicates, 'account_number_hash');
-            $data = array_filter($data, fn ($row) => ! in_array($row['account_number_hash'], $duplicateHashes));
+            $data = array_diff_key($data, array_flip($dbDuplicateKeys));
 
             // Validate and prepare data for bulk insert. $imported stays
             // plaintext (it's rendered back to the admin on the results page),

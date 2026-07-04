@@ -21,9 +21,11 @@ class DirectAlertHistory extends Model
     /**
      * The attributes that are mass assignable.
      *
-     * Order matters: account_number must be assigned before account_name so
-     * the AccountBoundEncrypted cast has account_number available when it
-     * encrypts account_name.
+     * Note: the AccountBoundEncrypted cast requires account_number to already
+     * be set on the model before account_name is assigned. Mass assignment
+     * (fill()/create()) preserves the order of keys in the *input* array, not
+     * this $fillable list - so callers must pass account_number before
+     * account_name in the array they hand to create()/fill().
      *
      * @var array<int, string>
      */

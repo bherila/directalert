@@ -70,4 +70,20 @@ class AdminImportControllerTest extends TestCase
         $this->assertSame(1, DirectAlert::count());
         $response->assertSeeText('Skipped Duplicate Records (1)');
     }
+
+    public function test_intra_file_duplicate_account_numbers_do_not_abort_the_whole_import(): void
+    {
+        $user = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($user);
+
+        // Multi-person utility accounts commonly repeat an account number.
+        $csv = "PERSON,ACCT_ID,POSTAL\n\"DOE, JANE\",5551234,08830\n\"DOE, JOHN\",5551234,08830\n\"ROE, RICHARD\",5559999,08831\n";
+
+        $response = $this->post('/admin/import', ['csv_file' => $this->csvFile($csv)]);
+
+        $response->assertOk();
+        $this->assertSame(2, DirectAlert::count());
+        $response->assertSeeText('Skipped Duplicate Records (1)');
+        $response->assertSeeText('Successfully Imported Records (2)');
+    }
 }

@@ -43,4 +43,28 @@ class DirectAlertHistoryEncryptionTest extends TestCase
         $this->assertNotSame('old@example.com', $raw->email);
         $this->assertNotSame('5551234', $raw->account_number);
     }
+
+    public function test_updating_contact_info_clears_exported_at(): void
+    {
+        $account = DirectAlert::factory()->create([
+            'account_number' => '5551234',
+            'account_name' => 'DOE, JANE',
+            'email' => 'old@example.com',
+            'exported_at' => now()->subWeek(),
+        ]);
+
+        $cookie = json_encode([
+            'account_number' => $account->account_number,
+            'account_name' => $account->account_name,
+        ]);
+
+        $this->withCookie('current_account', $cookie)->post('/update-information', [
+            'email' => 'new@example.com',
+            'home_phone' => '',
+            'work_phone' => '',
+            'cell_phone' => '',
+        ]);
+
+        $this->assertNull($account->fresh()->exported_at);
+    }
 }
