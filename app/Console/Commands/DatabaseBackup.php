@@ -8,7 +8,7 @@ use Symfony\Component\Process\Process;
 
 class DatabaseBackup extends Command
 {
-    protected $signature = 'db:backup {--path= : Directory to write the backup file to}';
+    protected $signature = 'db:backup {--path= : Directory to write the backup file to} {--keep-days=14 : Delete backups in the directory older than this many days (0 disables pruning)}';
 
     protected $description = 'Create a compressed mysqldump backup of the configured database connection';
 
@@ -69,7 +69,27 @@ class DatabaseBackup extends Command
 
         $this->info(sprintf('Backup complete: %s (%s)', $gzPath, $this->formatBytes(filesize($gzPath))));
 
+        $this->pruneOldBackups($directory, $connectionConfig['database']);
+
         return self::SUCCESS;
+    }
+
+    private function pruneOldBackups(string $directory, string $database): void
+    {
+        $keepDays = (int) $this->option('keep-days');
+
+        if ($keepDays <= 0) {
+            return;
+        }
+
+        $cutoff = now()->subDays($keepDays)->getTimestamp();
+
+        foreach (glob("{$directory}/{$database}_*.sql.gz") ?: [] as $file) {
+            if (filemtime($file) < $cutoff) {
+                @unlink($file);
+                $this->line("Pruned old backup: {$file}");
+            }
+        }
     }
 
     /**
