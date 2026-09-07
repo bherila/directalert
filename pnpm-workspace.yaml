@@ -1,5 +1,6 @@
 allowBuilds:
   esbuild: true
+  spotlight-noindex: true
   unrs-resolver: true
 
 overrides:
