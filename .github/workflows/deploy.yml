@@ -10,7 +10,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
 
     steps:
       - uses: actions/checkout@v4
@@ -37,7 +37,7 @@ jobs:
         run: vendor/bin/phpunit --configuration phpunit.xml
 
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     needs: test
     environment: prod
 

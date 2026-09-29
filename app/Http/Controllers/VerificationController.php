@@ -2,21 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DirectAlert;
+use App\Support\DirectAlertCrypto;
+use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use App\Models\DirectAlert; // Import the DirectAlert model
-use App\Models\DirectAlertHistory; // Import the DirectAlertHistory model
-use Illuminate\Support\Facades\Cookie; // Import the Cookie facade
-use Illuminate\Support\Facades\Redirect; // Import the Redirect facade
-use Illuminate\Support\Facades\Validator; // Import the Validator facade
-use Illuminate\Support\Facades\DB; // Import the DB facade
-use Carbon\Carbon; // Import Carbon for timestamps
+use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\View\View;
 
 class VerificationController extends Controller
 {
     /**
      * Show the account verification form.
      *
-     * @return \Illuminate\View\View
+     * @return View
      */
     public function showVerificationForm()
     {
@@ -24,10 +25,17 @@ class VerificationController extends Controller
     }
 
     /**
+     * Look up an account by its (plaintext) account_number via the blind index.
+     */
+    private function findByAccountNumber(string $accountNumber): ?DirectAlert
+    {
+        return DirectAlert::where('account_number_hash', DirectAlertCrypto::blindIndex($accountNumber))->first();
+    }
+
+    /**
      * Verify the account number and last name.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\RedirectResponse
+     * @return RedirectResponse
      */
     public function verifyAccount(Request $request)
     {
@@ -40,17 +48,19 @@ class VerificationController extends Controller
         $accountNumber = trim($request->input('account_number'));
         $lastName = trim($request->input('last_name'));
 
-        // Find the account in the direct_alert table
-        // We need to match the account_number exactly and the last name part of account_name
-        // Match either: last name up to comma OR exact match on last name (case-insensitive, handled by collation)
-        $account = DirectAlert::where('account_number', $accountNumber)
-            ->where(function($query) use ($lastName) {
-                $query->where('account_name', 'like', $lastName . ',%')
-                      ->orWhere('account_name', '=', $lastName);
-            })
-            ->first();
+        // account_number is encrypted, so we look up via its deterministic
+        // blind-index hash, then compare the decrypted account_name in PHP
+        // (case-insensitive) - either an exact match, or the last-name part
+        // up to the comma (account_name is stored as "LAST, FIRST").
+        $account = $this->findByAccountNumber($accountNumber);
+        $normalizedLastName = mb_strtoupper($lastName);
 
-        if ($account) {
+        $matches = $account && (
+            mb_strtoupper($account->account_name) === $normalizedLastName
+            || str_starts_with(mb_strtoupper($account->account_name), $normalizedLastName.',')
+        );
+
+        if ($matches) {
             // Account found, save account_number and full account_name to a cookie
             $cookie = Cookie::make('current_account', json_encode([
                 'account_number' => $account->account_number,
@@ -69,25 +79,22 @@ class VerificationController extends Controller
     /**
      * Show the contact information update form.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * @return View|RedirectResponse
      */
     public function showUpdateInformationForm(Request $request)
     {
         $accountData = json_decode($request->cookie('current_account'), true);
 
-        if (!$accountData || !isset($accountData['account_number']) || !isset($accountData['account_name'])) {
+        if (! $accountData || ! isset($accountData['account_number']) || ! isset($accountData['account_name'])) {
             // Cookie is missing or invalid, redirect back to verification
             return Redirect::to('/')->with('error', 'Please verify your account information to proceed.');
         }
 
-        $account = DirectAlert::where('account_number', $accountData['account_number'])
-                              ->where('account_name', $accountData['account_name'])
-                              ->first();
+        $account = $this->findByAccountNumber($accountData['account_number']);
 
-        if (!$account) {
+        if (! $account || $account->account_name !== $accountData['account_name']) {
             // Account not found in the database, redirect back to verification
-             return Redirect::to('/')->with('error', 'Account not found. Please verify your information again.');
+            return Redirect::to('/')->with('error', 'Account not found. Please verify your information again.');
         }
 
         return view('update-information', compact('account'));
@@ -96,14 +103,13 @@ class VerificationController extends Controller
     /**
      * Update the contact information for the account.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\RedirectResponse
+     * @return RedirectResponse
      */
     public function updateInformation(Request $request)
     {
         $accountData = json_decode($request->cookie('current_account'), true);
 
-        if (!$accountData || !isset($accountData['account_number']) || !isset($accountData['account_name'])) {
+        if (! $accountData || ! isset($accountData['account_number']) || ! isset($accountData['account_name'])) {
             // Cookie is missing or invalid, redirect back to verification
             return Redirect::to('/')->with('error', 'Please verify your account information to proceed.');
         }
@@ -125,13 +131,11 @@ class VerificationController extends Controller
             return Redirect::back()->withErrors($validator)->withInput();
         }
 
-        $account = DirectAlert::where('account_number', $accountData['account_number'])
-                              ->where('account_name', $accountData['account_name'])
-                              ->first();
+        $account = $this->findByAccountNumber($accountData['account_number']);
 
-        if (!$account) {
+        if (! $account || $account->account_name !== $accountData['account_name']) {
             // Account not found in the database, redirect back to verification
-             return Redirect::to('/')->with('error', 'Account not found. Please verify your information again.');
+            return Redirect::to('/')->with('error', 'Account not found. Please verify your information again.');
         }
 
         // Check if any of the fields have changed
@@ -145,14 +149,14 @@ class VerificationController extends Controller
         $hasChanges = false;
 
         foreach ($fieldsToCheck as $field) {
-            if ($account->$field != $request->input($field)) {
-            $hasChanges = true;
-            break;
+            if ($request->input($field) != $account->$field) {
+                $hasChanges = true;
+                break;
             }
         }
 
         // Check opt-in fields for changes between null and non-null
-        if (!$hasChanges) {
+        if (! $hasChanges) {
             $optinFields = [
                 'optin_emergency_email',
                 'optin_home_call',
@@ -166,15 +170,15 @@ class VerificationController extends Controller
                 $newValue = $request->has($field) ? Carbon::now() : null;
 
                 if (is_null($currentValue) !== is_null($newValue)) {
-                $hasChanges = true;
-                break;
+                    $hasChanges = true;
+                    break;
                 }
             }
         }
 
         if ($hasChanges) {
             // Copy current record to history
-            $historyRecord = $account->replicate();
+            $historyRecord = $account->replicate(['exported_at']);
             $historyRecord->setTable('direct_alert_history'); // Set the table name for the history model
             $historyRecord->save();
 
@@ -190,6 +194,11 @@ class VerificationController extends Controller
             $account->optin_work_call = $request->has('optin_work_call') ? Carbon::now() : null;
             $account->optin_cell_call = $request->has('optin_cell_call') ? Carbon::now() : null;
             $account->optin_cell_sms = $request->has('optin_cell_sms') ? Carbon::now() : null;
+
+            // This contact info has never been exported - clear any stale
+            // exported_at so a later purge (scoped to already-exported rows)
+            // can't wipe data the vendor never actually received.
+            $account->exported_at = null;
         }
 
         $account->save();
@@ -201,7 +210,7 @@ class VerificationController extends Controller
     /**
      * Show the thank you page and delete the cookie.
      *
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+     * @return View|RedirectResponse
      */
     public function showThanksPage()
     {

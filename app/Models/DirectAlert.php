@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Casts\AccountBoundEncrypted;
+use App\Support\DirectAlertCrypto;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -18,6 +20,12 @@ class DirectAlert extends Model
 
     /**
      * The attributes that are mass assignable.
+     *
+     * Note: the AccountBoundEncrypted cast requires account_number to already
+     * be set on the model before account_name is assigned. Mass assignment
+     * (fill()/create()) preserves the order of keys in the *input* array, not
+     * this $fillable list - so callers must pass account_number before
+     * account_name in the array they hand to create()/fill().
      *
      * @var array<int, string>
      */
@@ -44,11 +52,28 @@ class DirectAlert extends Model
      * @var array<string, string>
      */
     protected $casts = [
+        'account_number' => 'encrypted',
+        'account_name' => AccountBoundEncrypted::class,
+        'cell_phone' => 'encrypted',
+        'home_phone' => 'encrypted',
+        'work_phone' => 'encrypted',
+        'alternate_phone' => 'encrypted',
+        'email' => 'encrypted',
         'optin_cell_sms' => 'datetime',
         'optin_cell_call' => 'datetime',
         'optin_home_call' => 'datetime',
         'optin_work_call' => 'datetime',
         'optin_emergency_email' => 'datetime',
         'optin_email' => 'datetime',
+        'exported_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (DirectAlert $account) {
+            if ($account->isDirty('account_number')) {
+                $account->account_number_hash = DirectAlertCrypto::blindIndex($account->account_number);
+            }
+        });
+    }
 }

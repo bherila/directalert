@@ -5,7 +5,7 @@
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {
-        "php": "^8.5",
+        "php": "^8.4",
         "guzzlehttp/guzzle": "^7.2",
         "laravel/framework": "^13.0",
         "laravel/sanctum": "^4.0",
@@ -14,12 +14,14 @@
         "symfony/http-client": "^7.4"
     },
     "require-dev": {
-        "fakerphp/faker": "^1.23",
+        "fakerphp/faker": "^1.9.1",
+        "laravel/boost": "^2.0",
+        "laravel/pail": "^1.2",
         "laravel/pint": "^1.0",
         "laravel/sail": "^1.18",
-        "mockery/mockery": "^1.6",
-        "nunomaduro/collision": "^8.0",
-        "phpunit/phpunit": "^11.0",
+        "mockery/mockery": "^1.4.4",
+        "nunomaduro/collision": "^8.6",
+        "phpunit/phpunit": "^11.5",
         "spatie/laravel-ignition": "^2.0"
     },
     "autoload": {
@@ -47,6 +49,10 @@
         ],
         "post-create-project-cmd": [
             "@php artisan key:generate --ansi"
+        ],
+        "dev": [
+            "Composer\\Config::disableProcessTimeout",
+            "pnpm exec concurrently -c \"#93c5fd,#c4b5fd,#fdba74\" \"php artisan serve\" \"php artisan pail --timeout=0\" \"pnpm run dev\" --names=server,logs,vite"
         ]
     },
     "extra": {
@@ -58,9 +64,6 @@
         "optimize-autoloader": true,
         "preferred-install": "dist",
         "sort-packages": true,
-        "platform": {
-            "php": "8.5.0"
-        },
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true

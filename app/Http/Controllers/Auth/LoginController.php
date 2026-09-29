@@ -3,18 +3,19 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Notifications\SendTwoFactorCode;
 use App\Services\AdminAuditLogService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Http\RedirectResponse;
-use App\Notifications\SendTwoFactorCode;
+use Illuminate\View\View;
 
 class LoginController extends Controller
 {
     /**
      * Show the application's login form.
      *
-     * @return \Illuminate\View\View
+     * @return View
      */
     public function showLoginForm()
     {
@@ -23,9 +24,6 @@ class LoginController extends Controller
 
     /**
      * Handle a login request to the application.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function login(Request $request): RedirectResponse
     {
@@ -34,14 +32,14 @@ class LoginController extends Controller
             'password' => ['required'],
         ]);
 
-        $auditService = new AdminAuditLogService();
+        $auditService = new AdminAuditLogService;
 
         if (Auth::attempt($credentials, $request->filled('remember'))) {
             $request->session()->regenerate();
 
             $user = Auth::user();
             $user->generateTwoFactorCode();
-            $user->notify(new SendTwoFactorCode());
+            $user->notify(new SendTwoFactorCode);
 
             // Log successful login
             $auditService->log(
@@ -57,7 +55,7 @@ class LoginController extends Controller
         $auditService->log(
             action: 'login',
             wasSuccessful: false,
-            errorMessage: 'Invalid credentials'
+            errorMessage: 'Invalid credentials for email: '.$credentials['email']
         );
 
         return back()->withErrors([
@@ -67,17 +65,22 @@ class LoginController extends Controller
 
     /**
      * Log the user out of the application.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function logout(Request $request): RedirectResponse
     {
+        $userId = Auth::id();
+
         Auth::logout();
 
         $request->session()->invalidate();
 
         $request->session()->regenerateToken();
+
+        (new AdminAuditLogService)->log(
+            action: 'logout',
+            wasSuccessful: true,
+            authUserId: $userId
+        );
 
         return redirect('/'); // Redirect to home page after logout
     }

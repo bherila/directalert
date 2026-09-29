@@ -156,18 +156,14 @@ protected function isAccessible(User $user, ?string $path = null): bool
 - If you receive an "Illuminate\Foundation\ViteException: Unable to locate file in Vite manifest" error, you can run `npm run build` or ask the user to run `npm run dev` or `composer run dev`.
 
 
-=== laravel/v10 rules ===
+=== laravel/v13 rules ===
 
-## Laravel 10
+## Laravel 13
 
 - Use the `search-docs` tool to get version specific documentation.
 - Middleware typically live in `app/Http/Middleware/` and service providers in `app/Providers/`.
-- There is no `bootstrap/app.php` application configuration in Laravel 10:
-    - Middleware registration is in `app/Http/Kernel.php`
-    - Exception handling is in `app/Exceptions/Handler.php`
-    - Console commands and schedule registration is in `app/Console/Kernel.php`
-    - Rate limits likely exist in `RouteServiceProvider` or `app/Http/Kernel.php`
-- When using Eloquent model casts, you must use `protected $casts = [];` and not the `casts()` method. The `casts()` method isn't available on models in Laravel 10.
+- Application configuration lives in `bootstrap/app.php` (middleware, exception handling, and routing) and `bootstrap/providers.php` (service provider registration) — there is no `app/Http/Kernel.php`, `app/Console/Kernel.php`, or `app/Exceptions/Handler.php`.
+- You may use either `protected $casts = [];` or the `protected function casts(): array` method on Eloquent models.
 
 
 === pint/core rules ===

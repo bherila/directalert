@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
 use App\Notifications\SendTwoFactorCode;
+use App\Services\AdminAuditLogService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 
 class TwoFactorController extends Controller
 {
@@ -22,14 +23,26 @@ class TwoFactorController extends Controller
         ]);
 
         $user = auth()->user();
+        $auditService = new AdminAuditLogService;
 
-        if ($request->input('two_factor_code') != $user->two_factor_code) {
+        if (! $user->two_factor_code || ! hash_equals((string) $user->two_factor_code, (string) $request->input('two_factor_code'))) {
+            $auditService->log(
+                action: 'two_factor_verify',
+                wasSuccessful: false,
+                errorMessage: 'Incorrect two-factor code'
+            );
+
             throw ValidationException::withMessages([
                 'two_factor_code' => __("The code you entered doesn't match our records"),
             ]);
         }
 
         $user->resetTwoFactorCode();
+
+        $auditService->log(
+            action: 'two_factor_verify',
+            wasSuccessful: true
+        );
 
         return redirect()->intended('/admin/export');
     }
@@ -38,7 +51,12 @@ class TwoFactorController extends Controller
     {
         $user = auth()->user();
         $user->generateTwoFactorCode();
-        $user->notify(new SendTwoFactorCode());
+        $user->notify(new SendTwoFactorCode);
+
+        (new AdminAuditLogService)->log(
+            action: 'two_factor_resend',
+            wasSuccessful: true
+        );
 
         return redirect()->back()->withStatus(__('Code has been sent again'));
     }

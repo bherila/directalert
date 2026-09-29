@@ -2,37 +2,39 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\DirectAlert; // Import the DirectAlert model
+use App\Mail\AdminOperationNotification; // Import the DirectAlert model
+use App\Models\DirectAlert;
 use App\Services\AdminAuditLogService;
-use App\Mail\AdminOperationNotification;
 use Carbon\Carbon; // Import Carbon for date handling
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth; // Import Auth facade
-use Illuminate\Support\Facades\Response; // Import Response facade
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request; // Import Auth facade
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB; // Import Response facade
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Response;
 
 class DirectAlertDumpController extends Controller
 {
     /**
      * Dump DirectAlert data as CSV within a date range.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
     public function dumpCsv(Request $request)
     {
-        $auditService = new AdminAuditLogService();
-        
+        $auditService = new AdminAuditLogService;
+
         // Check if the user is authenticated and has the admin role
         $user = Auth::user();
-        if (!$user || $user->role !== 'admin') {
+        if (! $user || $user->role !== 'admin') {
             $auditService->log(
                 action: 'export',
                 wasSuccessful: false,
                 errorMessage: 'Unauthorized access attempt'
             );
-            return Response::make('Unauthorized: ' . json_encode($user), 401);
+
+            return Response::make('Unauthorized', 401);
         }
 
         $start = $request->input('start');
@@ -51,6 +53,7 @@ class DirectAlertDumpController extends Controller
                     wasSuccessful: false,
                     errorMessage: 'Invalid date range: start date is after end date'
                 );
+
                 return Response::make('Invalid date range: start date is after end date.', 400);
             }
 
@@ -59,8 +62,9 @@ class DirectAlertDumpController extends Controller
             $auditService->log(
                 action: 'export',
                 wasSuccessful: false,
-                errorMessage: 'Invalid or missing date parameters: ' . $e->getMessage()
+                errorMessage: 'Invalid or missing date parameters: '.$e->getMessage()
             );
+
             return Response::make('Invalid or missing date parameters. Please provide valid ISO timestamps for "start" and "end".', 400);
         }
 
@@ -74,10 +78,17 @@ class DirectAlertDumpController extends Controller
                 wasSuccessful: false,
                 errorMessage: 'No data found for the specified date range'
             );
+
             return Response::make('No data found for the specified date range.', 404);
         }
 
         $recordCount = $data->count();
+
+        // Mark these rows as exported so an admin can later purge their
+        // contact info via purgeExportedContactInfo() - a plain query builder
+        // update (not touching the encrypted columns) so exported_at gets set
+        // without re-encrypting anything.
+        DB::table('direct_alert')->whereIn('id', $data->pluck('id'))->update(['exported_at' => now()]);
 
         // Log successful export
         $auditService->log(
@@ -96,13 +107,13 @@ class DirectAlertDumpController extends Controller
             ));
         } catch (\Exception $e) {
             // Log the error but don't fail the operation
-            Log::error('Failed to send export notification email: ' . $e->getMessage());
+            Log::error('Failed to send export notification email: '.$e->getMessage());
         }
 
         // Generate CSV content
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="direct_alert_dump_' . $startDate->format('Ymd') . '_to_' . $endDate->format('Ymd') . '.csv"',
+            'Content-Disposition' => 'attachment; filename="direct_alert_dump_'.$startDate->format('Ymd').'_to_'.$endDate->format('Ymd').'.csv"',
         ];
 
         $callback = function () use ($data, $dateFormat) {
@@ -122,7 +133,7 @@ class DirectAlertDumpController extends Controller
                 'wantWorkCall',
                 'cellPhone',
                 'wantCellCall',
-                'wantCellSMS'
+                'wantCellSMS',
             ];
             fputcsv($file, $headerRow);
 
@@ -153,14 +164,14 @@ class DirectAlertDumpController extends Controller
                     str_pad((string) $row->zip_code, 5, '0', STR_PAD_LEFT), // Add single quote to preserve leading zeros
                     $formattedDate,
                     $row->email,
-                    $row->optin_email ? 'yes' : '',
+                    $row->optin_emergency_email ? 'yes' : '',
                     $row->home_phone,
                     $row->optin_home_call ? 'yes' : '',
                     $row->work_phone,
                     $row->optin_work_call ? 'yes' : '',
                     $row->cell_phone,
                     $row->optin_cell_call ? 'yes' : '',
-                    $row->optin_cell_sms ? 'yes' : ''
+                    $row->optin_cell_sms ? 'yes' : '',
                 ]);
             }
 
@@ -168,5 +179,79 @@ class DirectAlertDumpController extends Controller
         };
 
         return Response::stream($callback, 200, $headers);
+    }
+
+    /**
+     * Manually purge contact info (phones, email, opt-ins) for direct_alert
+     * rows that have already been exported and fall within the given
+     * exported_at range. account_number/account_name/zip_code are left
+     * intact so citizens can keep verifying and re-registering their contact
+     * info. Not automatic/scheduled - an admin runs this on demand, after
+     * downloading and verifying an export.
+     *
+     * @return RedirectResponse
+     */
+    public function purgeExportedContactInfo(Request $request)
+    {
+        $auditService = new AdminAuditLogService;
+
+        $user = Auth::user();
+        if (! $user || $user->role !== 'admin') {
+            $auditService->log(
+                action: 'purge',
+                wasSuccessful: false,
+                errorMessage: 'Unauthorized access attempt'
+            );
+
+            return redirect()->back()->with('error', 'Unauthorized.');
+        }
+
+        try {
+            $startDate = Carbon::parse($request->input('purge_start'));
+            $endDate = Carbon::parse($request->input('purge_end'));
+
+            if ($startDate->greaterThan($endDate)) {
+                $auditService->log(
+                    action: 'purge',
+                    wasSuccessful: false,
+                    errorMessage: 'Invalid date range: start date is after end date'
+                );
+
+                return redirect()->back()->with('error', 'Invalid date range: start date is after end date.');
+            }
+        } catch (\Exception $e) {
+            $auditService->log(
+                action: 'purge',
+                wasSuccessful: false,
+                errorMessage: 'Invalid or missing date parameters: '.$e->getMessage()
+            );
+
+            return redirect()->back()->with('error', 'Invalid or missing dates. Please provide a valid range.');
+        }
+
+        $recordCount = DB::table('direct_alert')
+            ->whereNotNull('exported_at')
+            ->whereBetween('exported_at', [$startDate, $endDate->endOfDay()])
+            ->update([
+                'cell_phone' => null,
+                'home_phone' => null,
+                'work_phone' => null,
+                'alternate_phone' => null,
+                'email' => null,
+                'optin_cell_sms' => null,
+                'optin_cell_call' => null,
+                'optin_home_call' => null,
+                'optin_work_call' => null,
+                'optin_emergency_email' => null,
+                'optin_email' => null,
+            ]);
+
+        $auditService->log(
+            action: 'purge',
+            wasSuccessful: true,
+            recordsAffected: $recordCount
+        );
+
+        return redirect()->back()->with('success', "Purged contact info for {$recordCount} already-exported record(s).");
     }
 }

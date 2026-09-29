@@ -24,6 +24,8 @@ class AdminAuditLog extends Model
      */
     protected $fillable = [
         'auth_user_id',
+        'ip_address',
+        'user_agent',
         'action',
         'was_successful',
         'records_affected',

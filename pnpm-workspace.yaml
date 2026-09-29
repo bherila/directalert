@@ -1,0 +1,8 @@
+allowBuilds:
+  '@parcel/watcher': false
+  esbuild: true
+  spotlight-noindex: true
+  unrs-resolver: true
+
+overrides:
+  nanoid: 3.3.18

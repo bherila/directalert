@@ -1,12 +1,13 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminExportController;
 use App\Http\Controllers\AdminImportController;
-use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\DirectAlertDumpController;
 use App\Http\Controllers\TwoFactorController;
+use App\Http\Controllers\VerificationController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -23,13 +24,13 @@ use App\Http\Controllers\TwoFactorController;
 Route::get('/', [VerificationController::class, 'showVerificationForm']);
 
 // Route for submitting the verification form
-Route::post('/verify', [VerificationController::class, 'verifyAccount']);
+Route::post('/verify', [VerificationController::class, 'verifyAccount'])->middleware('throttle:direct-alert-verify');
 
 // Route for showing the update information form
 Route::get('/update-information', [VerificationController::class, 'showUpdateInformationForm']);
 
 // Route for submitting the update information form
-Route::post('/update-information', [VerificationController::class, 'updateInformation']);
+Route::post('/update-information', [VerificationController::class, 'updateInformation'])->middleware('throttle:direct-alert-verify');
 
 // Route for the thank you page
 Route::get('/thanks', [VerificationController::class, 'showThanksPage']);
@@ -37,6 +38,7 @@ Route::get('/thanks', [VerificationController::class, 'showThanksPage']);
 // Admin routes with both auth and admin middleware
 Route::middleware(['auth', 'twofactor', 'admin'])->group(function () {
     Route::get('/admin/export', [AdminExportController::class, 'index']);
+    Route::post('/admin/purge-contact-info', [DirectAlertDumpController::class, 'purgeExportedContactInfo']);
     Route::get('/admin/import', [AdminImportController::class, 'index']);
     Route::post('/admin/import', [AdminImportController::class, 'import']);
 });
@@ -45,14 +47,14 @@ Route::middleware(['auth', 'twofactor', 'admin'])->group(function () {
 Route::prefix('auth')->group(function () {
     // Two-Factor Authentication Routes
     Route::middleware(['auth', 'twofactor'])->group(function () {
-        Route::get('verify/resend', [TwoFactorController::class, 'resend'])->name('verify.resend');
+        Route::get('verify/resend', [TwoFactorController::class, 'resend'])->name('verify.resend')->middleware('throttle:two-factor-resend');
         Route::get('verify', [TwoFactorController::class, 'index'])->name('verify.index');
-        Route::post('verify', [TwoFactorController::class, 'store'])->name('verify.store');
+        Route::post('verify', [TwoFactorController::class, 'store'])->name('verify.store')->middleware('throttle:two-factor-verify');
     });
 
     // Login Routes
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [LoginController::class, 'login']);
+    Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:login');
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
     // Registration Routes
