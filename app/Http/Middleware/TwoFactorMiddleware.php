@@ -11,7 +11,7 @@ class TwoFactorMiddleware
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -21,11 +21,12 @@ class TwoFactorMiddleware
             if ($user->two_factor_expires_at < now()) {
                 $user->resetTwoFactorCode();
                 auth()->logout();
+
                 return redirect()->route('login')
                     ->withStatus('Your verification code expired. Please re-login.');
             }
 
-            if (!$request->is('auth/verify*') && !$request->is('auth/logout')) {
+            if (! $request->is('auth/verify*') && ! $request->is('auth/logout')) {
                 return redirect()->route('verify.index');
             }
         }

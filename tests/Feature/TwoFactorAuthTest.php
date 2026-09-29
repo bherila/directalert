@@ -28,7 +28,7 @@ class TwoFactorAuthTest extends TestCase
         ]);
 
         $response->assertRedirect('/admin/export'); // Redirected to intended initially
-        
+
         $this->assertAuthenticatedAs($user);
         $user->refresh();
         $this->assertNotNull($user->two_factor_code);
@@ -95,7 +95,7 @@ class TwoFactorAuthTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHas('status', __('Code has been sent again'));
-        
+
         $user->refresh();
         $this->assertNotEquals($oldCode, $user->two_factor_code);
         Notification::assertSentTo($user, SendTwoFactorCode::class);
@@ -115,7 +115,7 @@ class TwoFactorAuthTest extends TestCase
 
         $response->assertRedirect(route('login'));
         $this->assertGuest();
-        
+
         $user->refresh();
         $this->assertNull($user->two_factor_code);
     }

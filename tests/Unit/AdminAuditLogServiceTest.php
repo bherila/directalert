@@ -2,10 +2,10 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
-use App\Services\AdminAuditLogService;
 use App\Models\AdminAuditLog;
+use App\Services\AdminAuditLogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class AdminAuditLogServiceTest extends TestCase
 {
@@ -16,7 +16,7 @@ class AdminAuditLogServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new AdminAuditLogService();
+        $this->service = new AdminAuditLogService;
     }
 
     public function test_can_log_successful_action(): void

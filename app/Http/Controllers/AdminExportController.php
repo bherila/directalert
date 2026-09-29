@@ -3,21 +3,21 @@
 namespace App\Http\Controllers;
 
 use App\Services\AdminAuditLogService;
-use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class AdminExportController extends Controller
 {
     /**
      * Show the admin export page.
      *
-     * @return \Illuminate\View\View
+     * @return View
      */
     public function index()
     {
-        $auditService = new AdminAuditLogService();
+        $auditService = new AdminAuditLogService;
         $exportHistory = $auditService->getExportHistory(20);
         $lastExportDate = $auditService->getLastExportDate();
-        
+
         return view('admin.export', compact('exportHistory', 'lastExportDate'));
     }
 }

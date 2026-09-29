@@ -13,6 +13,14 @@ composer install
 pnpm install
 ```
 
+## PHP code style (Pint)
+
+```bash
+vendor/bin/pint --test
+```
+
+Run `vendor/bin/pint` to auto-fix.
+
 ## TypeScript type-check
 
 ```bash
@@ -46,6 +54,7 @@ php artisan test
 ## Run everything (CI order)
 
 ```bash
+vendor/bin/pint --test
 pnpm run type-check
 pnpm run build
 pnpm run test
