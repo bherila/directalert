@@ -36,4 +36,4 @@ $_SERVER['SESSION_DRIVER'] = 'array';
 $_SERVER['QUEUE_CONNECTION'] = 'sync';
 
 // Now load the autoloader
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__.'/../vendor/autoload.php';

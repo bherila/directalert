@@ -21,7 +21,7 @@ return new class extends Migration
             $table->integer('records_failed')->default(0);
             $table->text('error_message')->nullable();
             $table->timestamps();
-            
+
             $table->foreign('auth_user_id')->references('id')->on('users')->onDelete('set null');
             $table->index(['action', 'created_at']);
         });
