@@ -65,7 +65,7 @@ Deploys happen via `.github/workflows/deploy.yml` on push to `main` (see that fi
 
 Deploying a Laravel application to cPanel involves several steps to ensure both PHP dependencies and frontend assets are correctly set up, and the web server points to the correct directory.
 
-Here's a general guide:
+Normal deploys are automated: pushing to `main` runs `.github/workflows/deploy.yml`, which builds and deploys the app (but does not run migrations, see above). The manual steps below are a general reference for setting up a new cPanel host.
 
 1.  **Upload Project Files:**
     *   Compress your project directory (excluding `node_modules` and `vendor` directories, as these will be installed on the server).
@@ -81,12 +81,12 @@ Here's a general guide:
     *   cPanel often provides a "Composer" tool in the "Software" section. Use this to navigate to your project root directory on the server and run `composer install --no-dev`. This will install all the necessary PHP packages.
     *   If you have SSH access, you can simply SSH into your account, navigate to the project root, and run `composer install --no-dev`.
 
-4.  **Install Frontend Dependencies and Build Assets (NPM/Yarn/Bun & Vite):**
+4.  **Install Frontend Dependencies and Build Assets (pnpm & Vite):**
     *   cPanel might have a "Node.js" or "Setup Node.js App" tool. Use this to set up a Node.js environment for your project.
     *   Use the terminal within the Node.js tool (or SSH) to navigate to your project root.
-    *   Install JavaScript dependencies: `npm install` (or `yarn install` or `bun install` depending on your project's lock file).
-    *   Build the frontend assets: `npm run build` (or `yarn build` or `bun build`). This compiles CSS and JavaScript using Vite and places them in the `public` directory.
-    *   Alternatively, you can use the `npm run zip` command to build the project and create a `dist.zip` file. This file will include the necessary `public` assets, `vendor` directory, and `.env` file for deployment.
+    *   Install JavaScript dependencies: `pnpm install --frozen-lockfile`. This project uses pnpm (`pnpm-lock.yaml`), so don't use npm, yarn, or bun.
+    *   Build the frontend assets: `pnpm run build`. This compiles CSS and JavaScript using Vite and places them in the `public` directory.
+    *   Alternatively, `pnpm run zip` builds the assets and creates a `dist.zip` containing `public/`, `resources/`, `.env`, and `.htaccess` (not `vendor/`).
 
 5.  **Run Database Migrations:**
     *   If you have SSH access, navigate to your project root and run `php artisan migrate`.
