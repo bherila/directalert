@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- PHP 8.5+
+- PHP 8.4+
 - Composer
 - Node.js + pnpm 10+
 
