@@ -67,10 +67,34 @@ jobs:
       - name: Install sshpass
         run: sudo apt-get install -y sshpass
 
+      # Pin the production host key instead of trusting whatever answers on
+      # first connect. SSH_KNOWN_HOSTS (prod environment) holds the deploy host's
+      # ssh-keyscan output. An empty or unparseable value fails the deploy here
+      # rather than falling back to unchecked connections.
+      - name: Pin production SSH host key
+        env:
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          SSH_KNOWN_HOSTS="${SSH_KNOWN_HOSTS:-}"
+          if [ -z "${SSH_KNOWN_HOSTS//[[:space:]]/}" ]; then
+            echo "::error::The SSH_KNOWN_HOSTS secret is empty or unset in the prod environment. Set it to the deploy host's ssh-keyscan output; the deploy will not connect without a pinned host key."
+            exit 1
+          fi
+          install -m 700 -d "$RUNNER_TEMP/ssh"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$RUNNER_TEMP/ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/ssh/known_hosts"
+          if ! ssh-keygen -l -f "$RUNNER_TEMP/ssh/known_hosts" > /dev/null; then
+            echo "::error::The SSH_KNOWN_HOSTS secret is not a valid known_hosts file."
+            exit 1
+          fi
+
+      # Every connection checks the pinned key and sends keepalives, so an
+      # idle-timeout middlebox cannot silently drop the session mid-deploy.
       - name: Deploy with rsync
         run: |
           sshpass -p "${{ secrets.SSH_PASSWORD }}" rsync -av --delete --exclude='.env' \
-            -e "ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o ServerAliveCountMax=4" \
+            -e "ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$RUNNER_TEMP/ssh/known_hosts -o ServerAliveInterval=15 -o ServerAliveCountMax=4" \
             app \
             bootstrap \
             config \
@@ -87,6 +111,6 @@ jobs:
 
       - name: Run artisan config clear/cache on server
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/ssh/known_hosts" -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
             ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} \
             "cd ~/directalert-app && /opt/cpanel/ea-php85/root/usr/bin/php artisan config:clear && /opt/cpanel/ea-php85/root/usr/bin/php artisan config:cache && cd ~ && rm -rf directalert.middlesexwater.com && ln -s directalert-app/public directalert.middlesexwater.com"
