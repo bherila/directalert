@@ -70,7 +70,7 @@ jobs:
       - name: Deploy with rsync
         run: |
           sshpass -p "${{ secrets.SSH_PASSWORD }}" rsync -av --delete --exclude='.env' \
-            -e "ssh -o StrictHostKeyChecking=no" \
+            -e "ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o ServerAliveCountMax=4" \
             app \
             bootstrap \
             config \
@@ -87,6 +87,6 @@ jobs:
 
       - name: Run artisan config clear/cache on server
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
             ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} \
             "cd ~/directalert-app && /opt/cpanel/ea-php85/root/usr/bin/php artisan config:clear && /opt/cpanel/ea-php85/root/usr/bin/php artisan config:cache && cd ~ && rm -rf directalert.middlesexwater.com && ln -s directalert-app/public directalert.middlesexwater.com"
