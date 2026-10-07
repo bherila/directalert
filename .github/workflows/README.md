@@ -21,4 +21,4 @@ Once the `prod` environment is created, you need to configure the following secr
 
 ## Deployment Target
 
-The workflow deploys the application to the `~/bwh-php/` directory on the remote server. Make sure this directory exists and the specified SSH user has write permissions to it.
+The workflow deploys the application to the `~/directalert-app/` directory on the remote server. Make sure this directory exists and the specified SSH user has write permissions to it.
