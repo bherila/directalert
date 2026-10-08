@@ -6,6 +6,7 @@ allowBuilds:
 
 overrides:
   nanoid: 3.3.18
+  'shell-quote@<1.11.0': 1.11.0
 
 # Jest 30's babel-preset-current-node-syntax pulls in Babel 7 syntax plugins
 # that declare a @babel/core ^7 peer. Those syntaxes are built into Babel 8, so
