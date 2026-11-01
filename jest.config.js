@@ -25,8 +25,12 @@ export default {
     '^.+\\.jsx?$': ['babel-jest', {
       configFile: './babel.config.cjs'
     }],
-    '^.+\\.tsx?$': ['ts-jest', {
-      useESM: true,
+    '^.+\\.tsx?$': ['@swc/jest', {
+      jsc: {
+        parser: { syntax: 'typescript', tsx: true },
+        transform: { react: { runtime: 'automatic' } },
+        target: 'es2022',
+      },
     }],
   },
   
