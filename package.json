@@ -15,6 +15,8 @@
         "@babel/core": "^8.0.7",
         "@babel/preset-env": "^8.0.7",
         "@jest/globals": "^30.5.2",
+        "@swc/core": "^1.16.20",
+        "@swc/jest": "^0.2.39",
         "@types/jest": "^30.0.0",
         "@types/node": "^26.6.5",
         "axios": "^1.20.0",
@@ -24,8 +26,7 @@
         "jest-environment-jsdom": "^30.5.2",
         "laravel-vite-plugin": "^3.2.0",
         "spotlight-noindex": "1.1.1",
-        "ts-jest": "^29.4.14",
-        "typescript": "^6.0.3",
+        "typescript": "^7.0.2",
         "vite": "^8.3.4"
     },
     "dependencies": {
