@@ -1,8 +1,8 @@
 <?php
 
 return [
-    // CLAUDE.md just imports AGENTS.md, so keep Boost from also writing its
-    // guidelines into CLAUDE.md (it does when the file exists).
+    // Claude Code reads AGENTS.md directly (there is no CLAUDE.md), so keep
+    // Boost writing its guidelines into AGENTS.md rather than a new CLAUDE.md.
     'agents' => [
         'claude_code' => [
             'guidelines_path' => 'AGENTS.md',
