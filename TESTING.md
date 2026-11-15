@@ -1,5 +1,10 @@
 # Testing
 
+Use CI for full suites, builds, PHPStan, mutation and coverage runs. Locally run
+only small relevant tests and targeted checks unless the user explicitly requests
+heavy validation. This preference was confirmed 2026-10-23 and overrides older
+local full-gate wording. Required CI must pass on the exact candidate before merge.
+
 ## Prerequisites
 
 - PHP 8.4+

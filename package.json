@@ -9,28 +9,29 @@
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
         "type-check": "tsc --noEmit",
-        "postinstall": "node scripts/spotlight-noindex.mjs"
+        "postinstall": "node scripts/spotlight-noindex.mjs",
+        "test:dependency-security": "node --test scripts/dependencies/*.contract.cjs"
     },
     "devDependencies": {
-        "@babel/core": "^8.0.7",
+        "@babel/core": "^8.1.2",
         "@babel/preset-env": "^8.0.7",
         "@jest/globals": "^30.5.2",
-        "@swc/core": "^1.16.20",
+        "@swc/core": "^1.16.22",
         "@swc/jest": "^0.2.39",
         "@types/jest": "^30.0.0",
-        "@types/node": "^26.6.5",
-        "axios": "^1.20.0",
+        "@types/node": "^26.6.6",
+        "axios": "^1.21.1",
         "babel-jest": "^30.5.2",
-        "concurrently": "^10.0.6",
+        "concurrently": "^10.0.7",
         "jest": "^30.5.2",
         "jest-environment-jsdom": "^30.5.2",
-        "laravel-vite-plugin": "^3.2.0",
+        "laravel-vite-plugin": "^3.2.1",
         "spotlight-noindex": "1.1.1",
         "typescript": "^7.0.2",
-        "vite": "^8.3.4"
+        "vite": "^8.3.8"
     },
     "dependencies": {
-        "@tailwindcss/vite": "^4.3.3",
-        "tailwindcss": "^4.3.3"
+        "@tailwindcss/vite": "^4.3.5",
+        "tailwindcss": "^4.3.5"
     }
 }
