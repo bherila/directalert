@@ -20,3 +20,7 @@ overrides:
 peerDependencyRules:
   allowedVersions:
     '@babel/core': '8'
+
+# Shared repair for GHSA-gcqx-w48m-w2h4; actual Jest CJS/UMD paths are tested.
+patchedDependencies:
+  deepmerge@4.3.1: patches/deepmerge-4.3.1.patch
