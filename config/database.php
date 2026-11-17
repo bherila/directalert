@@ -62,6 +62,31 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            // Match UTC application timestamps instead of inheriting the host's DST changes.
+            'timezone' => '+00:00',
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                $mysqlSslCaAttribute => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
+        'mariadb' => [
+            'driver' => 'mariadb',
+            'url' => env('DB_URL'),
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '3306'),
+            'database' => env('DB_DATABASE', 'laravel'),
+            'username' => env('DB_USERNAME', 'root'),
+            'password' => env('DB_PASSWORD', ''),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => env('DB_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'mask_bindings_in_exception_messages' => env('DB_MASK_BINDINGS', false),
+            'strict' => true,
+            'engine' => null,
+            // Laravel otherwise merges an unpinned MariaDB connection from its defaults.
+            'timezone' => '+00:00',
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 $mysqlSslCaAttribute => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
